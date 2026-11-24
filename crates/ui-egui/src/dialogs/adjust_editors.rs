@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use craft::behavior::{EditEvent, EditEvents, Mixed};
 use craft::color_ui::ui::gradient::{ColorStop, GradientStops};
-use craft::draw::ui::gradient::{GradientGroup, GradientItem, GradientMap, GradientMapEditor, GradientMapOutput};
+use craft::draw::ui::gradient::{GradientGroup, GradientItem, GradientMap, GradientMapEditor, GradientMapOutput, GradientMethod};
 use craft::imaging::ui::adjust::{
     AdjustDialogCx, AdjustField, AdjustSliders, AdjustWords, BlackWhite, BlackWhiteEditor, BrightnessContrast, BrightnessContrastEditor, ChannelMixer,
     ChannelMixerEditor, ColorBalance, ColorBalanceEditor, ColorBalanceTone, CurvesPanel, HueSaturation, HueSaturationEditor, Levels, LevelsPanel, PhotoFilter,
@@ -329,7 +329,9 @@ fn show(kind: &str, setup: &EditorSetup, ui: &mut Ui, value: &mut AdjustValue, c
             lifted(out.events, |level| AdjustValue::Threshold { level })
         }
         ("gradientMap", AdjustValue::GradientMap { value }) => {
-            let GradientMapOutput { event, color_requested, import, .. } = GradientMapEditor::new("Gradient Map", &*value).presets(&setup.gradients).show(ui);
+            // The engine does not render Stripes yet (#14688): it is listed, not offered.
+            let GradientMapOutput { event, color_requested, import, .. } =
+                GradientMapEditor::new("Gradient Map", &*value).presets(&setup.gradients).disabled_methods(&[GradientMethod::Stripes]).show(ui);
             let mut edit = EditEvents::new();
             if let Some(event) = event {
                 // The editor reports the edit; it does not write the value.
@@ -505,5 +507,7 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod gradient_map_method_menu_tests;
 #[cfg(test)]
 mod ui_tests;

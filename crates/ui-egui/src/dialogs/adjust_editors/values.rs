@@ -2,11 +2,11 @@
 //! editors' typed [`AdjustValue`]s.
 //!
 //! The engine's params stay the one stored form; this module is the only place that knows both key sets. The values
-//! an editor does not show (Gradient Map's smoothness and method, the other records of a partial Lab set) travel in
+//! an editor does not show (Gradient Map's smoothness, the other records of a partial Lab set) travel in
 //! [`ValueCx::base`], the params the dialog opened with, and [`to_params`] writes the edited fields over them.
 
 use craft::color_ui::ui::gradient::{ColorStop, GradientStops};
-use craft::draw::ui::gradient::GradientMap;
+use craft::draw::ui::gradient::{GradientMap, GradientMethod};
 use craft::imaging::ui::adjust::{
     BlackWhite, BrightnessContrast, ChannelMixer, ColorBalance, CurvesMode, HueRangeValue, HueSaturation, Levels, PhotoFilter, SelectiveColor, SelectiveMethod,
     ToneChannel, ToneChannels, ToneCurves, ToneSpace as FwSpace,
@@ -387,7 +387,8 @@ fn read_hue_saturation(v: &Value) -> HueSaturation {
     HueSaturation::new(number(v, "hue", 0.0), number(v, "saturation", 0.0), number(v, "lightness", 0.0), flag(v, "colorize", false), ranges)
 }
 
-/// The stops the editor shows: Photoshop's own when the map keeps them (`source`, #8351), else the map's.
+/// The stops the editor shows: Photoshop's own when the map keeps them (`source`, #8351), else the map's. The method is
+/// the kept gradient's; a map without one opens on Smooth, the method a new map gets (#14687).
 fn read_gradient_map(v: &Value) -> GradientMap {
     let source = v.get("source").filter(|s| s.is_object());
     let held = source.unwrap_or(v);
@@ -417,7 +418,8 @@ fn read_gradient_map(v: &Value) -> GradientMap {
         stops = vec![ColorStop::new(0.0, Srgba::BLACK), ColorStop::new(1.0, Srgba::WHITE)];
     }
     stops.sort_by(|a, b| a.location.total_cmp(&b.location));
-    GradientMap::new(GradientStops::new(stops), flag(v, "reverse", false), flag(v, "dither", false))
+    let method = source.and_then(|s| s.get("method")).and_then(Value::as_str).and_then(GradientMethod::from_name).unwrap_or_default();
+    GradientMap::new(GradientStops::new(stops), flag(v, "reverse", false), flag(v, "dither", false)).with_method(method)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -624,22 +626,23 @@ fn write_curves(out: &mut Map<String, Value>, entries: &[(ToneChannel, usize)], 
     }
 }
 
-/// Writes the stops: into Photoshop's gradient when `base` keeps one (its midpoints follow the stops, a new segment
-/// halfway; smoothness and method stay as `base` has them), else as the map's own stops.
+/// Writes the stops and the method into the map's gradient (`source`): the one `base` keeps (its midpoints follow the
+/// stops, a new segment halfway; its smoothness stays), else a new one at Smoothness 100 %, as a new map in Photoshop
+/// has. The map's plain `stops` are replaced by it.
 fn write_gradient_map(out: &mut Map<String, Value>, map: &GradientMap) {
     let mut stops: Vec<&ColorStop> = map.stops.color.iter().collect();
     stops.sort_by(|a, b| a.location.total_cmp(&b.location));
     let written: Vec<Value> = stops.iter().map(|s| json!([(s.location * 1000.0).round() / 1000.0, hex(s.color)])).collect();
-    match out.get_mut("source").and_then(Value::as_object_mut) {
-        Some(source) => {
-            // The engine accepts midpoints in 0.05..=0.95, one per segment.
-            let mids: Vec<f32> = stops.iter().take(stops.len().saturating_sub(1)).map(|s| s.midpoint.clamp(0.05, 0.95)).collect();
-            source.insert("midpoints".into(), json!(mids));
-            source.insert("stops".into(), Value::Array(written));
-        }
-        None => {
-            out.insert("stops".into(), Value::Array(written));
-        }
+    // The engine accepts midpoints in 0.05..=0.95, one per segment.
+    let mids: Vec<f32> = stops.iter().take(stops.len().saturating_sub(1)).map(|s| s.midpoint.clamp(0.05, 0.95)).collect();
+    if !out.get("source").is_some_and(Value::is_object) {
+        out.insert("source".into(), json!({"smoothness": 1.0}));
+    }
+    out.remove("stops");
+    if let Some(source) = out.get_mut("source").and_then(Value::as_object_mut) {
+        source.insert("midpoints".into(), json!(mids));
+        source.insert("stops".into(), Value::Array(written));
+        source.insert("method".into(), json!(map.method.name()));
     }
     out.insert("reverse".into(), json!(map.reverse));
     out.insert("dither".into(), json!(map.dither));
