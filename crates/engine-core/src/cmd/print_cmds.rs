@@ -1126,7 +1126,7 @@ fn render_and_spool(doc: &Document, p: &Value, cmd: &str, spooler: Option<&Spool
     let page = PrintPage { paper: (pw, ph), image: img, rect: (x, y, w, h), marks, description, label, emulsion_down };
     let output = p.get("output").and_then(Value::as_str).filter(|v| !v.is_empty()).map(str::to_string);
     let send = p.get("send").and_then(Value::as_bool).unwrap_or(output.is_none());
-    let copies = crate::commands::int(p, "copies").unwrap_or(1).clamp(1, 999) as u32;
+    let copies = crate::commands::int(p, "copies").unwrap_or(1).clamp(1, i64::from(craft_print::MOST_COPIES)) as u32;
     let dry = p.get("dryRun").and_then(Value::as_bool).unwrap_or(false);
     // Shared RGB transport handles compatible Windows pages; PDF-only content retains its route.
     // Sending follows the shared command contract; fuzz tests explicitly request dryRun.
@@ -1433,7 +1433,7 @@ fn print_windows(page: &PrintPage, p: &Value, title: &str, copies: u32) -> Resul
         settings: settings.as_ref(),
         title,
         output_file: None,
-        copies: copies.clamp(1, 999),
+        copies: copies.clamp(1, craft_print::MOST_COPIES),
         color_policy,
         primitives: &primitives,
     };
@@ -1763,7 +1763,7 @@ pub fn specs() -> Vec<CommandSpec> {
             CommandSpec { id: $id, label: $label, menu: $menu, shortcut: $sc, params: $params, enabled: $enabled, journal: true, run: $run }
         };
     }
-    const PRINT_PARAMS: &str = r##"{"printerSettings":hex? (Windows driver settings),"printer":name? (default printer),"copies":1..999=1,"duplex":"off|longEdge|shortEdge"? (absent keeps the printer's default),"grayscale":bool=false,"paper":"letter|legal|tabloid|a3|a4|a5|4x6|5x7"|[w,h] pt="letter","orientation":"portrait|landscape"="portrait","center":bool=true,"top":in?,"left":in?,"scale":%=100,"scaleToFit":bool=false,"printable":[x,y,w,h] pt? (the driver's printable area from the paper's top-left, as file.print.page reports it; Scale to Fit Media fits it, else the paper minus 18 pt; a native Windows print reads the driver's own instead),"colorHandling":"printerManages|photocraftManages|noColorManagement"="printerManages","printerProfile":profile? (photocraftManages),"intent":"perceptual|relative|saturation|absolute"="relative","bpc":bool=true,"cornerCropMarks":bool,"centerCropMarks":bool,"registrationMarks":bool,"bleed":in=0 (Functions › Bleed: corner crop marks this far inside the image edge, on the trim line),"description":bool,"labels":bool,"emulsionDown":bool=false (mirror the page left to right, for sublimation and other transfer printing),"output":pdf path? (print to PDF; then "send" defaults to false),"send":bool?,"printServer":"host[:port]|socket path"? (default: the system's CUPS; a named server is always printed to over IPP),"dryRun":bool=false (render the PDF, report the backend command, don't spool; write a PDF only at an explicit output path)} → {pdf:path|null (null without explicit output), imageRect, command:diagnostic array|null, sent, spooler:where the job went|null, backend:"lp|windows|ipp|portal"|null}"##;
+    const PRINT_PARAMS: &str = r##"{"printerSettings":hex? (Windows driver settings),"printer":name? (default printer),"copies":1..9999=1,"duplex":"off|longEdge|shortEdge"? (absent keeps the printer's default),"grayscale":bool=false,"paper":"letter|legal|tabloid|a3|a4|a5|4x6|5x7"|[w,h] pt="letter","orientation":"portrait|landscape"="portrait","center":bool=true,"top":in?,"left":in?,"scale":%=100,"scaleToFit":bool=false,"printable":[x,y,w,h] pt? (the driver's printable area from the paper's top-left, as file.print.page reports it; Scale to Fit Media fits it, else the paper minus 18 pt; a native Windows print reads the driver's own instead),"colorHandling":"printerManages|photocraftManages|noColorManagement"="printerManages","printerProfile":profile? (photocraftManages),"intent":"perceptual|relative|saturation|absolute"="relative","bpc":bool=true,"cornerCropMarks":bool,"centerCropMarks":bool,"registrationMarks":bool,"bleed":in=0 (Functions › Bleed: corner crop marks this far inside the image edge, on the trim line),"description":bool,"labels":bool,"emulsionDown":bool=false (mirror the page left to right, for sublimation and other transfer printing),"output":pdf path? (print to PDF; then "send" defaults to false),"send":bool?,"printServer":"host[:port]|socket path"? (default: the system's CUPS; a named server is always printed to over IPP),"dryRun":bool=false (render the PDF, report the backend command, don't spool; write a PDF only at an explicit output path)} → {pdf:path|null (null without explicit output), imageRect, command:diagnostic array|null, sent, spooler:where the job went|null, backend:"lp|windows|ipp|portal"|null}"##;
 
     vec![
         spec!("file.print", "Print…", &["File"], Some("Cmd+P"), PRINT_PARAMS, native_doc, print),
@@ -1849,3 +1849,6 @@ mod package_clash_name_tests;
 #[cfg(test)]
 #[path = "print_cmds/package_layer_rename_tests.rs"]
 mod package_layer_rename_tests;
+#[cfg(test)]
+#[path = "print_cmds/copies_range_tests.rs"]
+mod copies_range_tests;

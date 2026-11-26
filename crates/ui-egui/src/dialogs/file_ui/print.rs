@@ -58,7 +58,7 @@ fn last_settings(m: &Map<String, Value>) -> Settings {
         settings.destination = Destination::Printer(printer.to_string());
     }
     if let Some(copies) = m.get("copies").and_then(Value::as_u64) {
-        settings.copies = copies.clamp(1, 999) as u32;
+        settings.copies = copies.clamp(1, u64::from(craft_print::MOST_COPIES)) as u32;
     }
     settings.duplex = match m.get("duplex").and_then(Value::as_str) {
         Some("off") => Some(Duplex::Off),
