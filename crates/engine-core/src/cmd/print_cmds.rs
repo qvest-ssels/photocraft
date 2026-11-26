@@ -1844,11 +1844,11 @@ mod paths_export_path_blocks_tests;
 mod paths_export_smooth_operators_tests;
 
 #[cfg(test)]
+#[path = "print_cmds/copies_range_tests.rs"]
+mod copies_range_tests;
+#[cfg(test)]
 #[path = "print_cmds/package_clash_name_tests.rs"]
 mod package_clash_name_tests;
 #[cfg(test)]
 #[path = "print_cmds/package_layer_rename_tests.rs"]
 mod package_layer_rename_tests;
-#[cfg(test)]
-#[path = "print_cmds/copies_range_tests.rs"]
-mod copies_range_tests;
