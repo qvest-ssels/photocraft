@@ -153,7 +153,7 @@ fn body_view(props: &mut StatusProps<'_>, ui: &mut egui::Ui) {
 fn body_members(props: &mut StatusProps<'_>, ui: &mut egui::Ui) {
     match (props.document, props.view) {
         (Some(size), Some(view)) => {
-            let out = StatusReadout::new(Bind::given(view), size, props.item, &props.values).show(ui);
+            let out = StatusReadout::new(Bind::given(view), size, props.item, &props.values).clamp_out_of_range(true).show(ui);
             if let Some(picked) = out.item {
                 props.out.send(StatusEvent::Item(picked));
             }
@@ -186,7 +186,7 @@ pub(crate) fn document_window_status(app: &mut PhotocraftApp, ui: &mut egui::Ui,
     let (mut picked, mut edited, mut invalid_zoom) = (None, None, None);
     Bar::new("", BarKind::Status).show(ui, |ui, _| {
         if let (Some(size), Some(view)) = (size, view) {
-            let out = StatusReadout::new(Bind::given(view), size, item, &values).show(ui);
+            let out = StatusReadout::new(Bind::given(view), size, item, &values).clamp_out_of_range(true).show(ui);
             picked = out.item;
             edited = out.view.value().copied();
             invalid_zoom = out.invalid_zoom;
@@ -198,3 +198,7 @@ pub(crate) fn document_window_status(app: &mut PhotocraftApp, ui: &mut egui::Ui,
     chrome_ui::zoom_alert(app, invalid_zoom);
     edited
 }
+
+#[cfg(test)]
+#[path = "status_bar_zoom_alert_tests.rs"]
+mod zoom_alert_tests;
