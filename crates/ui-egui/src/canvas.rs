@@ -261,6 +261,9 @@ mod layer_edges_tests;
 mod move_readout_arrows_tests;
 
 #[cfg(test)]
+mod snap_distance_tests;
+
+#[cfg(test)]
 mod live_frame_tests;
 
 #[cfg(test)]
