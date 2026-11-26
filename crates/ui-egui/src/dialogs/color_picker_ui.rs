@@ -336,8 +336,9 @@ pub(crate) fn find(app: &PhotocraftApp, matches: impl Fn(&PickTarget) -> bool) -
         .last()
 }
 
-/// Once per pass: serves each open picker's Add to Swatches and canvas eyedropper request,
-/// previews the picked colours in their parents, and commits the pickers that finished. A second pass in
+/// Once per pass: serves each open picker's Add to Swatches and canvas eyedropper request, opens the
+/// "Closest value inserted" alert for a value typed past its field's range (#16741, #16739) over the
+/// picker, previews the picked colours in their parents, and commits the pickers that finished. A second pass in
 /// one frame finds nothing new: every request is taken from the dialog once.
 pub(crate) fn take(app: &mut PhotocraftApp, _ctx: &egui::Context) {
     if app.color_targets.is_empty() {
@@ -348,6 +349,10 @@ pub(crate) fn take(app: &mut PhotocraftApp, _ctx: &egui::Context) {
         let Some(d) = app.framework.dialogs.get_mut_by_id::<ColorPickerDialog>(id) else { continue };
         let swatch = d.take_add_to_swatches();
         let dropper = d.requests().take_eyedropper();
+        let range_alert = d.take_range_alert();
+        if let Some(alert) = range_alert {
+            let _ = crate::dialogs::alerts::show(app, alert);
+        }
         if let Some(picked) = swatch {
             crate::swatches_ui::add_from_picker(app, picked);
         }
@@ -477,6 +482,9 @@ mod tests;
 
 #[cfg(test)]
 mod screen_button_tests;
+
+#[cfg(test)]
+mod range_alert_tests;
 
 #[cfg(test)]
 #[path = "color_picker_swatch_name_tests.rs"]
