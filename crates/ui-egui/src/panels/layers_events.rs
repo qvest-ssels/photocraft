@@ -586,6 +586,9 @@ fn menu_pick(app: &mut PhotocraftApp, ctx: &egui::Context, row: &Option<LayerRow
     } else if command == layers_tree::MASK_OPTIONS {
         actions.push(("ui.maskTarget".into(), json!(true)));
         actions.push(("channel.options".into(), Value::Null));
+    } else if command == layers_tree::MASK_ENHANCE {
+        actions.push(("ui.maskTarget".into(), json!(true)));
+        actions.push(("select.selectAndMask".into(), Value::Null));
     } else {
         let _ = ctx;
         actions.push((command.to_string(), Value::Null));
@@ -685,3 +688,7 @@ pub(crate) fn run_actions(app: &mut PhotocraftApp, ctx: &egui::Context, actions:
 #[cfg(test)]
 #[path = "layers_vector_mask_click_tests.rs"]
 mod layers_vector_mask_click_tests;
+
+#[cfg(test)]
+#[path = "layers_mask_menu_tests.rs"]
+mod layers_mask_menu_tests;

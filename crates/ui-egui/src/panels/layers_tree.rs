@@ -617,6 +617,8 @@ pub(crate) const SELECT_PIXELS: &str = "layersPanel:selectPixels";
 pub(crate) const LOAD_MASK: &str = "layersPanel:loadMask:";
 pub(crate) const MASK_REFINE: &str = "layersPanel:selectAndMask";
 pub(crate) const MASK_OPTIONS: &str = "layersPanel:maskOptions";
+/// Enhance edge: Select and Mask on the mask until the contextual task bar's own action lands (#16782, #16753).
+pub(crate) const MASK_ENHANCE: &str = "layersPanel:enhanceEdge";
 
 /// The row menu at `target` as entries: the layer menu (Photoshop's order, trimmed to the kind),
 /// a mask thumbnail's menu, a pixel thumbnail's, an effects row's, or the empty space's.
@@ -669,10 +671,14 @@ pub(crate) fn row_menu(app: &PhotocraftApp, tree: &PhotoLayers, target: &MenuTar
             out
         }
         MenuKind::Mask(id) => {
-            let Some(mask) = tree.layer(&id).and_then(|l| l.mask.as_ref()) else { return Vec::new() };
+            let Some(l) = tree.layer(&id) else { return Vec::new() };
+            let Some(mask) = l.mask.as_ref() else { return Vec::new() };
+            // The reference's groups (#16782): the toggle ― Delete, Apply ― the three loads ― Select and
+            // Mask…, Enhance edge ― Mask Options….
             let mut out = commands(
                 vec![
                     Some((crate::layer_menu_ui::mask_toggle_label(mask.enabled), "layer.layerMask.enabled")),
+                    None,
                     Some((tl!("Delete Layer Mask"), "layer.layerMask.delete")),
                     Some((tl!("Apply Layer Mask"), "layer.layerMask.apply")),
                 ],
@@ -685,7 +691,12 @@ pub(crate) fn row_menu(app: &PhotocraftApp, tree: &PhotoLayers, target: &MenuTar
                 out.push(Entry::new(format!("{LOAD_MASK}{op}"), label.to_string()));
             }
             out.push(Entry::separator());
-            out.push(Entry::new(MASK_REFINE.to_string(), tl!("Select and Mask…").to_string()).enabled(crate::menus::is_enabled(app, "select.selectAndMask")));
+            let refine = crate::menus::is_enabled(app, "select.selectAndMask");
+            out.push(Entry::new(MASK_REFINE.to_string(), tl!("Select and Mask…").to_string()).enabled(refine));
+            // Greyed on an adjustment layer's mask, as in the reference.
+            let enhance = refine && !matches!(l.content, LayerContent::Adjustment(_));
+            out.push(Entry::new(MASK_ENHANCE.to_string(), tl!("Enhance edge").to_string()).enabled(enhance));
+            out.push(Entry::separator());
             out.push(Entry::new(MASK_OPTIONS.to_string(), tl!("Mask Options…").to_string()));
             out
         }
