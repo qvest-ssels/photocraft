@@ -1,7 +1,8 @@
 //! #16746: while the foreground or background Color Picker is open the Eyedropper is the active tool, with its options
 //! bar, and a click on the image samples with its Sample Size and Sample. OK, Cancel, Enter, Escape and the close box
 //! put the previous tool back, with its settings as they were. The switch is no history step, and a picker opened with
-//! the Eyedropper already active leaves it active.
+//! the Eyedropper already active leaves it active. A tool the user chooses while the picker is open stands, and the
+//! pickers other than the foreground and background ones keep sampling every layer.
 
 use craft::color_ui::ui::{ColorPickerDialog, SampleSize, SampleSource};
 use egui::vec2;
@@ -182,4 +183,66 @@ fn a_type_edit_keeps_the_type_tool() {
     app.framework.dialogs.cancel_by_id(&ctx, id);
     crate::canvas::testing::frame(&mut app);
     assert_eq!(app.ui.tool, Tool::Type);
+}
+
+/// A picker opened with the Eyedropper already active does not take a tool chosen afterwards back to the Eyedropper.
+#[test]
+fn a_tool_chosen_after_opening_with_the_eyedropper_stands() {
+    let mut h = harness(Tool::Eyedropper);
+    open(h.state_mut(), "foreground");
+    h.run_steps(4);
+    crate::tool_memory::select(h.state_mut(), Tool::Move);
+    h.run_steps(4);
+    assert_eq!(h.state().ui.tool, Tool::Move, "the chosen Move tool stays while the picker is open");
+    close_with(&mut h, "Cancel");
+    assert_eq!(h.state().ui.tool, Tool::Move, "and after it closes");
+}
+
+/// The Eyedropper chosen explicitly while the picker is open (after another tool) stays when it closes: the tool the
+/// picker replaced does not come back over the user's choice.
+#[test]
+fn an_eyedropper_chosen_while_open_stays_after_close() {
+    let mut h = harness(Tool::Brush);
+    open(h.state_mut(), "foreground");
+    h.run_steps(4);
+    assert_eq!(h.state().ui.tool, Tool::Eyedropper);
+    crate::tool_memory::select(h.state_mut(), Tool::Move);
+    crate::tool_memory::select(h.state_mut(), Tool::Eyedropper);
+    h.run_steps(2);
+    close_with(&mut h, "OK");
+    assert_eq!(h.state().ui.tool, Tool::Eyedropper, "the explicit choice stands");
+}
+
+/// The same with a tool change that does not go through `tool_memory::select` (a letter tap sets the tool itself): the
+/// picker sees it on its next pass.
+#[test]
+fn a_tool_tapped_while_open_stands() {
+    let mut h = harness(Tool::Brush);
+    open(h.state_mut(), "foreground");
+    h.run_steps(4);
+    h.state_mut().ui.tool = Tool::Move;
+    h.run_steps(2);
+    h.state_mut().ui.tool = Tool::Eyedropper;
+    h.run_steps(2);
+    close_with(&mut h, "Cancel");
+    assert_eq!(h.state().ui.tool, Tool::Eyedropper, "the tapped Eyedropper stands");
+}
+
+/// A picker other than the foreground or background one (the Note tool's colour) keeps sampling every layer: the
+/// Eyedropper's Sample setting is the toolbar pickers' alone, and the tool stays.
+#[test]
+fn another_picker_samples_every_layer() {
+    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    app.run("file.new", json!({"width": 40, "height": 20, "background": "transparent"})).unwrap();
+    let below = app.run("shape.create", json!({"kind": "rect", "rect": [0, 0, 40, 20], "fill": "#ff0000"})).unwrap()["layer"].as_u64().unwrap();
+    app.run("shape.create", json!({"kind": "rect", "rect": [0, 0, 40, 20], "fill": "#00ff00"})).unwrap();
+    app.run("layer.select", json!({"layer": below})).unwrap();
+    crate::tool_memory::select(&mut app, Tool::Brush);
+    app.ui.tool_options.eyedropper.size = SampleSize::Point;
+    app.ui.tool_options.eyedropper.source = SampleSource::Current;
+    let id = open_for(&mut app, "Note Color", craft::theme::Srgba::from_rgb_array([0.0, 0.0, 0.0]), None, PickTarget::NoteColor);
+    crate::canvas::testing::clear_of_dialogs(&mut app, [10.0, 10.0]);
+    crate::canvas::testing::click(&mut app, [10.0, 10.0], egui::Modifiers::NONE);
+    assert_eq!(app.ui.tool, Tool::Brush, "the Note colour picker keeps the tool");
+    assert_eq!(rgb_hex(testing::current(&app, id).expect("the picker is open").color), "#00ff00", "the composite colour");
 }

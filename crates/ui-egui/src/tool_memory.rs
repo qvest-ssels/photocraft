@@ -44,6 +44,7 @@ pub(crate) fn select(app: &mut PhotocraftApp, tool: Tool) {
     // PLAN: R95 puts the end of a Type on a Path proposal (`type_path_placement::propose(app, None)`) in `tools::tool_changed` (canvas/tools/mod.rs), not here.
     app.ui.tool = tool;
     ended_by_tool(app);
+    crate::dialogs::canvas_input::tool_chosen(app);
 }
 
 /// Add New Artboard's placing mode ends with the Artboard tool (#11386): every place that sets

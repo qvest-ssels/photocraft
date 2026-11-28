@@ -103,20 +103,56 @@ pub(crate) fn arm_dropper(app: &mut PhotocraftApp, dialog: DialogId, key: String
     dropper_tool(app);
 }
 
+/// What the foreground or background Color Picker's arm did with the active tool (#16746).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum DropperTool {
+    /// The Eyedropper replaced this tool; [`disarm_dropper`] puts it back.
+    Replaced(Tool),
+    /// The tool stands as it is when the dropper is released: the Eyedropper was already active, or the user chose a
+    /// tool while the picker was open.
+    Kept,
+}
+
 /// The foreground or background Color Picker samples with the Eyedropper, as the reference application does: while its
 /// dropper is armed the Eyedropper is the active tool (the toolbar and the options bar show it), and the tool it
 /// replaced is remembered for [`disarm_dropper`] to put back (#16746). A gesture of the tool that runs when the picker
 /// opens (a Move drag) keeps its tool to its release, so the switch waits for it: the picker's taker calls this once
-/// per pass. Never while type is being edited, since another tool would commit the edit.
+/// per pass. Never while type is being edited, since another tool would commit the edit. The switch happens at most
+/// once per arm, and a tool the user chooses meanwhile stands ([`tool_chosen`]).
 pub(crate) fn dropper_tool(app: &mut PhotocraftApp) {
     let Some(dialog) = app.dialog_dropper.as_ref().map(|(dialog, _)| *dialog) else { return };
-    if app.dialog_dropper_tool.is_some() || app.ui.tool == Tool::Eyedropper || app.ui.text_edit.is_some() || crate::canvas::tools::in_gesture(app) {
+    match app.dialog_dropper_tool {
+        Some(DropperTool::Kept) => return,
+        // A tool chosen by a letter tap (not through `tool_memory::select`) stands too; a held letter or the pen's
+        // eraser end is temporary and keeps the Eyedropper as the selected tool.
+        Some(DropperTool::Replaced(_)) => {
+            if crate::tool_memory::selected(app) != Tool::Eyedropper {
+                app.dialog_dropper_tool = Some(DropperTool::Kept);
+            }
+            return;
+        }
+        None => {}
+    }
+    if app.ui.text_edit.is_some() || crate::canvas::tools::in_gesture(app) {
         return;
     }
-    if matches!(crate::color_picker_ui::target(app, dialog), Some(PickTarget::Foreground | PickTarget::Background)) {
-        app.dialog_dropper_tool = Some(app.ui.tool);
-        app.ui.tool = Tool::Eyedropper;
-        crate::tool_memory::ended_by_tool(app);
+    if !matches!(crate::color_picker_ui::target(app, dialog), Some(PickTarget::Foreground | PickTarget::Background)) {
+        return;
+    }
+    if app.ui.tool == Tool::Eyedropper {
+        app.dialog_dropper_tool = Some(DropperTool::Kept);
+        return;
+    }
+    app.dialog_dropper_tool = Some(DropperTool::Replaced(app.ui.tool));
+    app.ui.tool = Tool::Eyedropper;
+    crate::tool_memory::ended_by_tool(app);
+}
+
+/// An explicit tool choice (`tool_memory::select`) while a Color Picker's dropper is armed: the chosen tool stands when
+/// the picker closes, even when it is the Eyedropper, and the picker no longer switches tools.
+pub(crate) fn tool_chosen(app: &mut PhotocraftApp) {
+    if app.dialog_dropper.is_some() {
+        app.dialog_dropper_tool = Some(DropperTool::Kept);
     }
 }
 
@@ -124,7 +160,7 @@ pub(crate) fn dropper_tool(app: &mut PhotocraftApp) {
 /// replaced with the Eyedropper, unless another tool was chosen meanwhile.
 pub(crate) fn disarm_dropper(app: &mut PhotocraftApp) {
     app.dialog_dropper = None;
-    if let Some(tool) = app.dialog_dropper_tool.take()
+    if let Some(DropperTool::Replaced(tool)) = app.dialog_dropper_tool.take()
         && app.ui.tool == Tool::Eyedropper
     {
         app.ui.tool = tool;
@@ -184,13 +220,16 @@ fn sampled(app: &mut PhotocraftApp, at: [f64; 2]) -> Option<Srgba> {
 /// the image changes nothing but is still the dialog's press.
 pub(crate) fn pick_color(app: &mut PhotocraftApp, at: [f64; 2]) -> bool {
     let Some((id, key)) = app.dialog_dropper.clone() else { return false };
-    // The Eyedropper's Sample Size and Sample, as with the tool itself (#16746).
     let options = app.ui.tool_options.eyedropper;
-    let native = crate::canvas::sampling::native_color(app, at, options.size, options.source);
-    let Some(color) = native
-        .map(|(rgb, _)| Srgba::from_rgb_array(rgb))
-        .or_else(|| crate::canvas::sampling::sample_color(app, at, options.size, options.source).map(Srgba::from_rgb_array))
-    else {
+    // The foreground and background pickers sample with the Eyedropper's Sample Size and Sample, as the tool itself
+    // (#16746); the other pickers sample every layer, the composite when the native read has nothing.
+    let toolbar = matches!(crate::color_picker_ui::target(app, id), Some(PickTarget::Foreground | PickTarget::Background));
+    let source = if toolbar { options.source } else { craft::color_ui::ui::SampleSource::All };
+    let native = crate::canvas::sampling::native_color(app, at, options.size, source);
+    let fallback = |app: &mut PhotocraftApp| {
+        if toolbar { crate::canvas::sampling::sample_color(app, at, options.size, source).map(Srgba::from_rgb_array) } else { sampled(app, at) }
+    };
+    let Some(color) = native.map(|(rgb, _)| Srgba::from_rgb_array(rgb)).or_else(|| fallback(app)) else {
         return true;
     };
     let Some(picker) = app.framework.dialogs.get_mut_by_id::<ColorPickerDialog>(id) else { return false };
