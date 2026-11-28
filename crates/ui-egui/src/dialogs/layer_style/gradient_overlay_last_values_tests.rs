@@ -245,14 +245,14 @@ fn a_recalled_gradient_with_more_stops_than_a_command_takes_still_applies() {
     assert_eq!(layer_effects(&app).len(), 1, "the new overlay is on the layer");
 }
 
-/// Reset to Default must not keep a remembered key that neither Make Default nor the factory values
-/// give: a recalled Smoothness 0 goes back to the engine's default (100). An explicit Make Default
+/// Reset to Default must not keep a recalled Smoothness the Make Default value leaves out: a recalled
+/// Smoothness 0 goes back to the factory 100 (#14900 put Smoothness in the factory values; before,
+/// it went back to the engine's default for a missing key, also 100). An explicit Make Default
 /// Smoothness still wins (#16354 review).
 #[test]
 fn reset_to_default_drops_a_remembered_smoothness_no_default_gives() {
     let mut app = app_with_layer(20);
     let factory = untouched_page(&mut app);
-    assert!(factory.get("smoothness").is_none(), "the factory page has no smoothness: {factory}");
     app.run("layer.layerStyle.gradientOverlay", json!({"from": "#ff0000", "to": "#0000ff", "method": "classic", "smoothness": 0})).unwrap();
     let id = open_gradient(&mut app);
     let fx = first_of(&app, id, GRADIENT);

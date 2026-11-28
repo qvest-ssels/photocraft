@@ -1146,8 +1146,10 @@ fn reset_to_default(app: &mut PhotocraftApp, dialog: DialogId, instance: EffectI
     let starts_from_last = STARTS_FROM_LAST.contains(&kind);
     if starts_from_last {
         // A new instance of this kind may start from the last OK, so a key the stored default leaves out goes back to
-        // the page's factory value instead of keeping the last OK's (#14899).
-        params = params.over(&EffectSpec::photoshop(kind).defaults);
+        // the page's factory value instead of keeping the last OK's (#14899): the engine's factory values over the
+        // framework's, as a new page gets them in `specs` (#14900 made them differ for Gradient Overlay).
+        let factory = style_params(kind, &fresh_params(kind.key(), light as f32, None), None).over(&EffectSpec::photoshop(kind).defaults);
+        params = params.over(&factory);
     }
     if kind == EffectKind::GradientOverlay && !params.0.contains_key("smoothness") {
         // Set, not left out: a loaded overlay's recorded interpolation keeps its Smoothness for a missing key, so a
