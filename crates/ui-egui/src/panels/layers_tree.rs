@@ -575,6 +575,8 @@ enum MenuKind {
     Effects,
     /// The layer menu.
     Layer(LayerId),
+    /// A vector mask's thumbnail (#16781).
+    VectorMask(LayerId),
     /// No menu.
     None,
 }
@@ -586,6 +588,13 @@ fn menu_kind(tree: &PhotoLayers, target: &MenuTarget<LayerId>) -> MenuKind {
         Some(LayerRowKey::Layer(id)) => {
             let Some(l) = tree.layer(id) else { return MenuKind::None };
             match target.part {
+                // #16781 measured the vector mask menu on pixel layers only: shape, group and adjustment
+                // layers keep no menu until measured.
+                Some(LayerPart::VectorMask)
+                    if l.vector_mask.is_some() && !l.is_group() && !matches!(l.content, LayerContent::Shape(_) | LayerContent::Adjustment(_)) =>
+                {
+                    MenuKind::VectorMask(*id)
+                }
                 Some(LayerPart::LayerMask) if l.mask.is_some() => MenuKind::Mask(*id),
                 // A pixel layer's thumbnail; not the Background's, which has no transparency to load.
                 Some(LayerPart::Pixels) if matches!(l.content, LayerContent::Raster(_)) && l.frame.is_none() && !tree.doc().is_background(*id) => {
@@ -597,6 +606,11 @@ fn menu_kind(tree: &PhotoLayers, target: &MenuTarget<LayerId>) -> MenuKind {
         }
         _ => MenuKind::None,
     }
+}
+
+/// The vector mask thumbnail menu's first entry: what a pick does to the mask.
+fn vector_mask_toggle_label(enabled: bool) -> &'static str {
+    if enabled { tl!("Disable Vector Mask") } else { tl!("Enable Vector Mask") }
 }
 
 /// The four thumbnail sizes, in menu order.
@@ -611,6 +625,8 @@ fn thumbnail_sizes() -> [(ThumbSize, &'static str); 4] {
 
 /// Menu values that are no engine command: the panel handles them (`layers_events`).
 pub(crate) const RENAME: &str = "layersPanel:rename";
+/// A vector mask thumbnail's entries: the engine command after the prefix, run on the clicked layer.
+pub(crate) const VECTOR_MASK: &str = "layersPanel:vectorMask:";
 pub(crate) const THUMB_SIZE: &str = "layersPanel:thumbs:";
 pub(crate) const CLIP_THUMBS: &str = "layersPanel:clip:";
 pub(crate) const SELECT_PIXELS: &str = "layersPanel:selectPixels";
@@ -688,6 +704,17 @@ pub(crate) fn row_menu(app: &PhotocraftApp, tree: &PhotoLayers, target: &MenuTar
             out.push(Entry::new(MASK_REFINE.to_string(), tl!("Select and Mask…").to_string()).enabled(crate::menus::is_enabled(app, "select.selectAndMask")));
             out.push(Entry::new(MASK_OPTIONS.to_string(), tl!("Mask Options…").to_string()));
             out
+        }
+        MenuKind::VectorMask(id) => {
+            let Some(mask) = tree.layer(&id).and_then(|l| l.vector_mask.as_ref()) else { return Vec::new() };
+            let entry = |command: &str, label: &str| Entry::new(format!("{VECTOR_MASK}{command}"), label.to_string());
+            vec![
+                entry("layer.vectorMask.enabled", vector_mask_toggle_label(mask.enabled)),
+                Entry::separator(),
+                entry("layer.vectorMask.delete", tl!("Delete Vector Mask")),
+                // Greyed while the mask is disabled, as in the reference.
+                entry("layer.rasterize.vectorMask", tl!("Rasterize Vector Mask")).enabled(mask.enabled),
+            ]
         }
         MenuKind::Effects => commands(crate::layer_menu_ui::effects_entries(), false),
         MenuKind::Layer(id) => {
@@ -809,6 +836,10 @@ impl ThumbSource<LayerThumb<LayerId>> for PhotoThumbs<'_> {
 pub(crate) fn select_pixels(layer: LayerId) -> Value {
     json!({"channel": "transparency", "layer": layer.0, "operation": "new"})
 }
+
+#[cfg(test)]
+#[path = "layers_vector_mask_menu_tests.rs"]
+mod layers_vector_mask_menu_tests;
 
 #[cfg(test)]
 #[path = "indexed_background_name_tests.rs"]

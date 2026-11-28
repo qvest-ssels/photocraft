@@ -576,6 +576,17 @@ fn menu_pick(app: &mut PhotocraftApp, ctx: &egui::Context, row: &Option<LayerRow
         return;
     }
     let Some(id) = layer else { return };
+    // A vector mask thumbnail's entry acts on the clicked layer; the toggle says its direction so the
+    // history step is named Enable or Disable Vector Mask (#16781).
+    if let Some(command) = command.strip_prefix(layers_tree::VECTOR_MASK) {
+        let mut params = json!({"layer": id.0});
+        if command == "layer.vectorMask.enabled" {
+            let Some(enabled) = app.session.active().and_then(|st| st.doc.layer(id)).and_then(|l| l.vector_mask.as_ref()).map(|m| m.enabled) else { return };
+            params["enabled"] = json!(!enabled);
+        }
+        actions.push((command.to_string(), params));
+        return;
+    }
     if command == layers_tree::SELECT_PIXELS {
         actions.push(("select.loadSelection".into(), layers_tree::select_pixels(id)));
     } else if let Some(operation) = command.strip_prefix(layers_tree::LOAD_MASK) {
