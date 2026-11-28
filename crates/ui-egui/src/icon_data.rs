@@ -8,6 +8,16 @@ pub static PHOTOCRAFT_ICONS: AppIcons = AppIcons::new("photocraft", Some(2.0), I
 
 /// Every icon of the set: name and SVG document.
 pub static ICONS: &[(&str, &[u8])] = &[
+    ("arrange-consolidate-all-to-tabs", include_bytes!("../../../assets/icons/arrange-consolidate-all-to-tabs.svg")),
+    ("arrange-four-up", include_bytes!("../../../assets/icons/arrange-four-up.svg")),
+    ("arrange-six-up", include_bytes!("../../../assets/icons/arrange-six-up.svg")),
+    ("arrange-three-up-horizontal", include_bytes!("../../../assets/icons/arrange-three-up-horizontal.svg")),
+    ("arrange-three-up-stacked", include_bytes!("../../../assets/icons/arrange-three-up-stacked.svg")),
+    ("arrange-three-up-vertical", include_bytes!("../../../assets/icons/arrange-three-up-vertical.svg")),
+    ("arrange-tile-all-horizontally", include_bytes!("../../../assets/icons/arrange-tile-all-horizontally.svg")),
+    ("arrange-tile-all-vertically", include_bytes!("../../../assets/icons/arrange-tile-all-vertically.svg")),
+    ("arrange-two-up-horizontal", include_bytes!("../../../assets/icons/arrange-two-up-horizontal.svg")),
+    ("arrange-two-up-vertical", include_bytes!("../../../assets/icons/arrange-two-up-vertical.svg")),
     ("arrow-left-right", include_bytes!("../../../assets/icons/arrow-left-right.svg")),
     ("circle-dashed", include_bytes!("../../../assets/icons/circle-dashed.svg")),
     ("ellipsis", include_bytes!("../../../assets/icons/ellipsis.svg")),

@@ -122,6 +122,9 @@ mod export_submenu_separator_tests;
 mod arrange_menu_order_tests;
 
 #[cfg(test)]
+mod arrange_menu_icons_tests;
+
+#[cfg(test)]
 mod bar_cursor_tests;
 
 #[cfg(test)]

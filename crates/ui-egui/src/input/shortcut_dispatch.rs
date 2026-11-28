@@ -346,6 +346,12 @@ pub(crate) fn command_rows(app: &PhotocraftApp) -> Vec<CommandDef> {
     if let Some(&at) = index.get(crate::panels::QUICK_MASK) {
         rows[at].icon = Some("square-dashed".into());
     }
+    // Window › Arrange's layout entries show their layout (#16889); the menu rows draw their command's icon.
+    for &(id, icon) in crate::menu_catalog::ARRANGE_ICONS {
+        if let Some(&at) = index.get(id) {
+            rows[at].icon = Some(icon.into());
+        }
+    }
     // Smart Objects › Reveal in Finder names this platform's file manager, in the list as in the menu.
     if let Some(&at) = index.get("layer.smartObjects.revealInFinder") {
         rows[at].label = crate::menus::reveal_label().into();

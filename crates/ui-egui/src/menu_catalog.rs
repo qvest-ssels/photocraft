@@ -810,3 +810,19 @@ pub static CATALOG: &[(&[&str], &str, Option<&str>, &str)] = &[
     (&["Window"], "Tools", None, "window.panel.tools"),
     (&["Window"], "Contextual Task Bar", None, "window.panel.contextualTaskBar"),
 ];
+
+/// The layout icons of the first ten Window › Arrange entries, by command id: each draws the panes its entry lays out
+/// (columns, rows, the n-up splits, one tabbed window). Original artwork in `assets/icons/arrange-*.svg`. The other
+/// Arrange entries have none, as in the reference application (#16889).
+pub const ARRANGE_ICONS: &[(&str, &str)] = &[
+    ("window.arrange.tileAllVertically", "arrange-tile-all-vertically"),
+    ("window.arrange.tileAllHorizontally", "arrange-tile-all-horizontally"),
+    ("window.arrange.twoUpHorizontal", "arrange-two-up-horizontal"),
+    ("window.arrange.twoUpVertical", "arrange-two-up-vertical"),
+    ("window.arrange.threeUpHorizontal", "arrange-three-up-horizontal"),
+    ("window.arrange.threeUpVertical", "arrange-three-up-vertical"),
+    ("window.arrange.threeUpStacked", "arrange-three-up-stacked"),
+    ("window.arrange.fourUp", "arrange-four-up"),
+    ("window.arrange.sixUp", "arrange-six-up"),
+    ("window.arrange.consolidateAllToTabs", "arrange-consolidate-all-to-tabs"),
+];
