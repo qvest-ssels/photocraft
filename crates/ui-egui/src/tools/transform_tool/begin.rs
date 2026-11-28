@@ -497,9 +497,10 @@ pub(crate) fn begin_content_aware(
         content_aware: Some(live),
         ..OpenPreview::new(session, Arc::new(pd), textures, app.ui.tool)
     });
-    // Content-Aware Scale only scales: no rotating, skewing, distorting or warping.
+    // Content-Aware Scale only scales: no rotating, skewing, distorting or warping, and every row
+    // of the box's right-click menu is greyed, as in the reference application (#16733).
     app.ui.transform = Some(FreeTransform {
-        session: open_session(app, rect, BoxAllow::new(false, false, false), false),
+        session: open_session(app, rect, BoxAllow::new(false, false, false).with_menu(false), false),
         id: session,
         layer: id.0,
         layers: Vec::new(),

@@ -261,6 +261,10 @@ pub fn fields(app: &mut PhotocraftApp, ui: &mut egui::Ui, t: &FreeTransform) {
 }
 
 #[cfg(test)]
+#[path = "cas_context_menu_tests.rs"]
+mod cas_context_menu_tests;
+
+#[cfg(test)]
 mod tests {
     use craft::behavior::kurbo::{Point, Rect};
 
