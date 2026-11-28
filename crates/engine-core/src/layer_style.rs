@@ -738,19 +738,20 @@ fn overlay_common(c: &mut FxCommon, p: &Value) {
     }
 }
 
-/// The Inner Shadow page's typed ranges (#14940): Distance 0..30000 px, Size 0..250 px and an
-/// Angle of -360..360. `layer.layerStyle.innerShadow` follows them, as the epic's measured
-/// clamping table says; the Drop Shadow page's own ranges are #14893.
-const INNER_DISTANCE_RANGE: (f32, f32) = (0.0, 30_000.0);
-const INNER_SIZE_RANGE: (f32, f32) = (0.0, 250.0);
-const INNER_ANGLE_RANGE: (f32, f32) = (-360.0, 360.0);
+/// The typed ranges of the Inner Shadow page (#14940) and the Drop Shadow page (#14893), the same
+/// on both: Distance 0..30000 px, Size 0..250 px and an Angle of -360..360.
+/// `layer.layerStyle.innerShadow` and `layer.layerStyle.dropShadow` follow them, as the epics'
+/// measured clamping tables say.
+const SHADOW_DISTANCE_RANGE: (f32, f32) = (0.0, 30_000.0);
+const SHADOW_SIZE_RANGE: (f32, f32) = (0.0, 250.0);
+const SHADOW_ANGLE_RANGE: (f32, f32) = (-360.0, 360.0);
 
-/// The angle Photoshop stores for an Inner Shadow typed past half a turn: 200 becomes -160 and
-/// -200 becomes 160 (#14940). An angle already inside -180..180 is kept exactly, so in-range
+/// The angle Photoshop stores for a shadow typed past half a turn: 200 becomes -160 and -200
+/// becomes 160 (#14940, #14893). An angle already inside -180..180 is kept exactly, so in-range
 /// params, imported PSD values and the shared light angle stay as they were (a plain
 /// `rem_euclid` would move a stored 180 to -180).
-fn inner_shadow_angle(a: f32) -> f32 {
-    let a = a.clamp(INNER_ANGLE_RANGE.0, INNER_ANGLE_RANGE.1);
+fn shadow_angle(a: f32) -> f32 {
+    let a = a.clamp(SHADOW_ANGLE_RANGE.0, SHADOW_ANGLE_RANGE.1);
     if (-180.0..=180.0).contains(&a) { a } else { (a + 180.0).rem_euclid(360.0) - 180.0 }
 }
 
@@ -758,19 +759,19 @@ fn overlay_shadow(s: &mut Shadow, p: &Value, inner: bool) {
     overlay_common(&mut s.common, p);
     overlay_color(p, "color", &mut s.color);
     if let Some(x) = f_of(p, "angle") {
-        s.angle = if inner { inner_shadow_angle(x) } else { x };
+        s.angle = shadow_angle(x);
     }
     if let Some(x) = b_of(p, "useGlobalLight") {
         s.use_global_light = x;
     }
     if let Some(x) = f_of(p, "distance") {
-        s.distance = if inner { x.clamp(INNER_DISTANCE_RANGE.0, INNER_DISTANCE_RANGE.1) } else { x };
+        s.distance = x.clamp(SHADOW_DISTANCE_RANGE.0, SHADOW_DISTANCE_RANGE.1);
     }
     if let Some(x) = f_of(p, if inner { "choke" } else { "spread" }) {
         s.spread = (x / 100.0).clamp(0.0, 1.0);
     }
     if let Some(x) = f_of(p, "size") {
-        s.size = if inner { x.clamp(INNER_SIZE_RANGE.0, INNER_SIZE_RANGE.1) } else { x };
+        s.size = x.clamp(SHADOW_SIZE_RANGE.0, SHADOW_SIZE_RANGE.1);
     }
     overlay_contour(p, "contour", &mut s.contour);
     overlay_bool(p, "antiAlias", &mut s.anti_alias);
@@ -1211,7 +1212,7 @@ pub fn specs() -> Vec<CommandSpec> {
         style_cmd!(
             "dropShadow",
             "Drop Shadow…",
-            r##"{"color":"#rrggbb","opacity":0..100=75,"blend":str="multiply","angle":deg=120,"useGlobalLight":bool,"distance":px=5,"spread":0..100,"size":px=5,"contour":"Linear|Cone|Cone - Inverted|Cove - Deep|Cove - Shallow|Gaussian|Half Round|Ring|Ring - Double|Rolling Slope - Descending|Rounded Steps|Sawtooth 1"|{"name":str,"points":[[in 0..1,out 0..1],…],"corners":[bool,…]}="Linear","antiAlias":bool,"noise":0..100,"knocksOut":bool,"add":bool,"layer":id}"##
+            r##"{"color":"#rrggbb","opacity":0..100=75,"blend":str="multiply","angle":-360..360=120 (clamped, then wrapped into -180..180: 200 -> -160, 400 -> 0),"useGlobalLight":bool,"distance":0..30000=5,"spread":0..100,"size":0..250=5,"contour":"Linear|Cone|Cone - Inverted|Cove - Deep|Cove - Shallow|Gaussian|Half Round|Ring|Ring - Double|Rolling Slope - Descending|Rounded Steps|Sawtooth 1"|{"name":str,"points":[[in 0..1,out 0..1],…],"corners":[bool,…]}="Linear","antiAlias":bool,"noise":0..100,"knocksOut":bool,"add":bool,"layer":id}"##
         ),
         style_cmd!(
             "innerShadow",
@@ -1342,6 +1343,8 @@ mod satin_defaults_tests;
 #[cfg(test)]
 mod outer_glow_defaults_tests;
 
+#[cfg(test)]
+mod drop_shadow_ranges_tests;
 #[cfg(test)]
 mod inner_shadow_ranges_tests;
 #[cfg(test)]

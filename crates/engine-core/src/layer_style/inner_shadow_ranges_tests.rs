@@ -67,15 +67,3 @@ fn inner_shadow_clamps_size_to_the_page_range() {
         assert_eq!(inner_shadow(&s).size, kept, "size {sent}");
     }
 }
-
-/// #14940 names the Drop Shadow's ranges for #14893, so that path stores what it is given
-/// today: no clamp on Distance 40000 or Size 300, no wrap on Angle 200.
-#[test]
-fn a_drop_shadow_still_stores_what_it_is_given() {
-    let mut s = session(32, 32);
-    s.execute("layer.layerStyle.dropShadow", json!({"distance": 40000.0, "size": 300.0, "angle": 200.0, "useGlobalLight": false})).unwrap();
-    let d = s.active().unwrap();
-    let l = d.doc.layer(d.active_layer.unwrap()).unwrap();
-    let Effect::DropShadow(sh) = &l.effects.items[0] else { panic!("{:?}", l.effects.items) };
-    assert_eq!((sh.distance, sh.size, sh.angle), (40000.0, 300.0, 200.0));
-}

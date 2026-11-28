@@ -47,6 +47,8 @@ pub(crate) mod color_picker;
 mod contour;
 #[cfg(test)]
 mod drop_shadow_last_values_tests;
+#[cfg(test)]
+mod drop_shadow_ranges_tests;
 mod gradient_field;
 #[cfg(test)]
 mod gradient_method_tests;
@@ -618,6 +620,9 @@ fn keep_outer_glow(app: &PhotocraftApp, layer: LayerId, style: &LayerStyle) {
     }
 }
 
+/// The Drop Shadow page's longest Distance, in px (#14893).
+const DROP_SHADOW_MAX_DISTANCE: f64 = 30_000.0;
+
 /// The effect pages with the user's defaults (Make Default) over the factory ones.
 /// Outer Glow starts at factory values after a restart; Reset still uses the saved default.
 fn specs(keys: &HashMap<String, String>, user: &Map<String, Value>, light: f32) -> Vec<EffectSpec> {
@@ -635,6 +640,13 @@ fn specs(keys: &HashMap<String, String>, user: &Map<String, Value>, light: f32) 
                     let after = spec.fields.iter().position(|f| f.key == "opacity").unwrap_or(0);
                     spec.fields.insert(after + 1, field);
                 }
+            }
+            if kind == EffectKind::DropShadow
+                && let Some(distance) = spec.fields.iter_mut().find(|f| f.key == "distance")
+                && let FieldKind::Slider { max, .. } = &mut distance.kind
+            {
+                // #14893: the Drop Shadow's Distance goes up to 30000 px, as the command's range does.
+                *max = DROP_SHADOW_MAX_DISTANCE;
             }
             let saved = if kind == EffectKind::OuterGlow { None } else { user.get(*key) };
             spec.defaults = style_params(kind, &fresh_params(key, light, saved), None).over(&spec.defaults);
@@ -852,13 +864,13 @@ fn effect_entry(fx: Option<&Value>, kind: &str, mut params: Value, initial_light
                     }
                 }
             }
-            if kind == "innerShadow"
+            if (kind == "innerShadow" || kind == "dropShadow")
                 && let Ok(original) = serde_json::from_value::<Effect>(fx.clone())
                 && let Some(edits) = params.as_object_mut()
             {
                 let shown = values_of(&original, initial_light_angle.unwrap_or(120.0) as f32);
-                // A file can carry a Distance or Size outside the page's typed ranges (#14940) that
-                // the command clamps. An untouched field must not send it back through the clamp.
+                // A file can carry a Distance or Size outside the page's typed ranges (#14940,
+                // #14893) that the command clamps. An untouched field must not send it back through the clamp.
                 for key in ["distance", "size"] {
                     if edits.get(key) == shown.get(key) {
                         edits.remove(key);
