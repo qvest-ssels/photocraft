@@ -467,6 +467,9 @@ pub struct PhotocraftApp {
     pub(crate) properties_hidden: u64,
     /// The Color Picker dialog asking for a screen sample: the dialog and the field that took it.
     pub(crate) dialog_dropper: Option<(craft::ui::dialog::DialogId, String)>,
+    /// The tool that was active before the foreground or background Color Picker's dropper made the Eyedropper the
+    /// active tool; it comes back when the dropper is released (#16746).
+    pub(crate) dialog_dropper_tool: Option<crate::state::Tool>,
     /// The child dialog (colour picker or contour editor) the open Layer Style dialog has, with that dialog's id.
     pub(crate) layer_style_child: Option<(craft::ui::dialog::DialogId, dialogs::layer_style::Child)>,
     /// What each open Color Picker edits (`color_picker_ui`).

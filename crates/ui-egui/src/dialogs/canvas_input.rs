@@ -22,6 +22,8 @@ use craft::ui::dialog::{DialogId, StackDialog as _};
 use craft::ui::patterns::form_dialogs::HostedParamDialog;
 
 use crate::PhotocraftApp;
+use crate::color_picker_ui::PickTarget;
+use crate::state::Tool;
 
 /// A pick a hosted dialog (or the Properties panel) arms on the canvas.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -94,13 +96,40 @@ pub(crate) fn armed(app: &PhotocraftApp) -> Option<DialogPick> {
 /// Records that the dialog `dialog` asked for a screen sample under the request `key`: the next presses on the image
 /// answer it, while `dialog` is the stack's top. The takers of the eyedropper requests call this (`take_eyedropper`
 /// hands a request once, so something has to remember it).
+///
+/// The foreground or background Color Picker's arm also makes the Eyedropper the active tool ([`dropper_tool`]).
 pub(crate) fn arm_dropper(app: &mut PhotocraftApp, dialog: DialogId, key: String) {
     app.dialog_dropper = Some((dialog, key));
+    dropper_tool(app);
 }
 
-/// Forgets the armed dropper (the dialog closed or its toggle went off).
+/// The foreground or background Color Picker samples with the Eyedropper, as the reference application does: while its
+/// dropper is armed the Eyedropper is the active tool (the toolbar and the options bar show it), and the tool it
+/// replaced is remembered for [`disarm_dropper`] to put back (#16746). A gesture of the tool that runs when the picker
+/// opens (a Move drag) keeps its tool to its release, so the switch waits for it: the picker's taker calls this once
+/// per pass. Never while type is being edited, since another tool would commit the edit.
+pub(crate) fn dropper_tool(app: &mut PhotocraftApp) {
+    let Some(dialog) = app.dialog_dropper.as_ref().map(|(dialog, _)| *dialog) else { return };
+    if app.dialog_dropper_tool.is_some() || app.ui.tool == Tool::Eyedropper || app.ui.text_edit.is_some() || crate::canvas::tools::in_gesture(app) {
+        return;
+    }
+    if matches!(crate::color_picker_ui::target(app, dialog), Some(PickTarget::Foreground | PickTarget::Background)) {
+        app.dialog_dropper_tool = Some(app.ui.tool);
+        app.ui.tool = Tool::Eyedropper;
+        crate::tool_memory::ended_by_tool(app);
+    }
+}
+
+/// Forgets the armed dropper (the dialog closed or its toggle went off), and puts back the tool the Color Picker's arm
+/// replaced with the Eyedropper, unless another tool was chosen meanwhile.
 pub(crate) fn disarm_dropper(app: &mut PhotocraftApp) {
     app.dialog_dropper = None;
+    if let Some(tool) = app.dialog_dropper_tool.take()
+        && app.ui.tool == Tool::Eyedropper
+    {
+        app.ui.tool = tool;
+        crate::tool_memory::ended_by_tool(app);
+    }
 }
 
 /// Whether `pick` keeps sampling while the primary button stays held and the pointer moves: the one rule of the
@@ -155,8 +184,15 @@ fn sampled(app: &mut PhotocraftApp, at: [f64; 2]) -> Option<Srgba> {
 /// the image changes nothing but is still the dialog's press.
 pub(crate) fn pick_color(app: &mut PhotocraftApp, at: [f64; 2]) -> bool {
     let Some((id, key)) = app.dialog_dropper.clone() else { return false };
-    let native = crate::canvas::sampling::native_color(app, at, app.ui.tool_options.eyedropper.size, craft::color_ui::ui::SampleSource::All);
-    let Some(color) = native.map(|(rgb, _)| Srgba::from_rgb_array(rgb)).or_else(|| sampled(app, at)) else { return true };
+    // The Eyedropper's Sample Size and Sample, as with the tool itself (#16746).
+    let options = app.ui.tool_options.eyedropper;
+    let native = crate::canvas::sampling::native_color(app, at, options.size, options.source);
+    let Some(color) = native
+        .map(|(rgb, _)| Srgba::from_rgb_array(rgb))
+        .or_else(|| crate::canvas::sampling::sample_color(app, at, options.size, options.source).map(Srgba::from_rgb_array))
+    else {
+        return true;
+    };
     let Some(picker) = app.framework.dialogs.get_mut_by_id::<ColorPickerDialog>(id) else { return false };
     if let Some((_, inks)) = native {
         picker.set_color(craft::color_ui::ui::PickedColor::cmyk(color, inks.map(|v| v * 100.0)));

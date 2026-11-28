@@ -355,6 +355,8 @@ pub(crate) fn take(app: &mut PhotocraftApp, _ctx: &egui::Context) {
             crate::dialogs::canvas_input::arm_dropper(app, id, request.key);
         }
     }
+    // A picker armed during a canvas gesture makes the Eyedropper current once the gesture ends.
+    crate::dialogs::canvas_input::dropper_tool(app);
     live_preview::sync(app);
     for id in ids {
         match app.framework.dialogs.take_by_id::<ColorPickerDialog>(id) {
@@ -481,3 +483,7 @@ mod screen_button_tests;
 #[cfg(test)]
 #[path = "color_picker_swatch_name_tests.rs"]
 mod swatch_name_tests;
+
+#[cfg(test)]
+#[path = "color_picker_eyedropper_tool_tests.rs"]
+mod eyedropper_tool_tests;

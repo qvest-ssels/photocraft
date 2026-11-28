@@ -117,6 +117,7 @@ impl PhotocraftApp {
             adjust_session: None,
             properties_hidden: 0,
             dialog_dropper: None,
+            dialog_dropper_tool: None,
             layer_style_child: None,
             color_targets: HashMap::new(),
             color_answers: Vec::new(),
