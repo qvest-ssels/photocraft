@@ -20,6 +20,8 @@ fn move_controls_fixture() -> (Harness<'static, Box<PhotocraftApp>>, [LayerId; 2
     app.ui.tool_options.move_auto_select = true;
     app.ui.tool_options.move_target = "layer".into();
     app.ui.extras.snap = false;
+    // The shape layer's contextual task bar (#16755) would sit over the points these tests press.
+    app.ui.panels.context_task_bar = false;
     let ctx = app.ctx().clone();
     let mut h = Harness::builder().with_context(ctx).with_size(vec2(1000.0, 800.0)).build_ui_state(
         |ui, app: &mut Box<PhotocraftApp>| {

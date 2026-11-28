@@ -287,6 +287,7 @@ use tools::shape_gradient_ui;
 use tools::shape_options;
 use tools::shape_paint_ui;
 pub use tools::shape_stroke_ui;
+pub use tools::shape_task_bar;
 pub use tools::slice_ui;
 pub use tools::stroke_constraint;
 pub use tools::stroke_trace;

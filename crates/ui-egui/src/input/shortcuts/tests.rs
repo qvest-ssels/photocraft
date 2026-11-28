@@ -39,6 +39,8 @@ fn pen_app(points: &[[f64; 2]]) -> Box<PhotocraftApp> {
 fn pen_command_z_and_backspace_retract_points_before_document_undo() {
     let mut app = pen_app(&[]);
     app.run("shape.create", json!({"kind": "rect", "rect": [10, 10, 40, 40], "fill": "#ff0000"})).unwrap();
+    // The rectangle's contextual task bar (#16755) would sit over the clicks below.
+    app.ui.panels.context_task_bar = false;
     let history = app.session.active().unwrap().history.past_len();
     // Away from the rectangle's anchors, which the Pen would edit.
     for at in [[100.0, 100.0], [150.0, 100.0], [150.0, 150.0]] {

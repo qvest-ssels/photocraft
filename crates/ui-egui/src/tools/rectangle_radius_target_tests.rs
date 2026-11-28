@@ -77,6 +77,8 @@ fn the_rectangle_tools_radius_field_leaves_the_active_shape_alone() {
 #[test]
 fn the_next_rectangle_takes_the_typed_radius() {
     let mut h = bar_with(Tool::Rectangle);
+    // Rectangle 1's contextual task bar (#16755) would sit over the drag below.
+    h.state_mut().ui.panels.context_task_bar = false;
     type_radius(&mut h, "5000");
     drag(h.state_mut(), [100.0, 100.0], [180.0, 170.0]);
     let all = radii(&h);

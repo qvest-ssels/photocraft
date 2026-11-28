@@ -65,6 +65,8 @@ pub enum TaskBarContext {
     Crop { doc: u64, frame: u64 },
     /// The Frame tool's bar for one frame layer.
     Frame { doc: u64, layer: u64 },
+    /// A shape layer's bar for that layer.
+    Shape { doc: u64, layer: u64 },
 }
 
 /// The contextual task bar's context bookkeeping (#16758), kept out of saved state.

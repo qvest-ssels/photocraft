@@ -37,6 +37,7 @@ pub(super) mod shape_gradient_ui;
 pub(super) mod shape_options;
 pub(super) mod shape_paint_ui;
 pub mod shape_stroke_ui;
+pub mod shape_task_bar;
 pub mod slice_ui;
 pub mod stroke_constraint;
 pub mod stroke_trace;
