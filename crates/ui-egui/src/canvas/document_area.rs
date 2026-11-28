@@ -154,9 +154,11 @@ pub(crate) fn publish_shown(app: &PhotocraftApp) {
     let docs = app.session.documents();
     let mut shown: Vec<usize> = match arranged_panes(app, app.last_canvas_rect) {
         Some(cells) => cells.into_iter().map(|(d, _)| d).collect(),
-        None => main_canvas_document(app).into_iter().collect(),
+        None => single_canvas_document(app).into_iter().collect(),
     };
-    shown.extend(app.ui.document_windows.floating.iter().filter_map(|(group, _)| group.shown).filter_map(|id| document_index(app, id)));
+    if !super::document_windows::full_screen_shows_active(app) {
+        shown.extend(app.ui.document_windows.floating.iter().filter_map(|(group, _)| group.shown).filter_map(|id| document_index(app, id)));
+    }
     let mut shown: Vec<(u64, u64)> = shown.into_iter().filter_map(|d| docs.get(d)).map(|st| (st.doc.id.0, gpu.canvas_bytes(&st.doc))).collect();
     shown.sort_unstable();
     shown.dedup();
@@ -201,9 +203,19 @@ fn documents(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     }
 }
 
+/// The document the single canvas of the main window shows: the active document while the full-screen modes show it
+/// in place of the floating windows (#16846), else the active docked document or the first docked one.
+pub(super) fn single_canvas_document(app: &PhotocraftApp) -> Option<usize> {
+    if super::document_windows::full_screen_shows_active(app) {
+        return app.session.active_index();
+    }
+    main_canvas_document(app)
+}
+
 /// The document pane: an opening file's progress, the arranged panes, or the single canvas. With no docked document
 /// it shows nothing over the surround: a floating document belongs to its own window, and drawing it here too would
-/// show the same page twice.
+/// show the same page twice. The full-screen modes are the exception: with every document floating they show the
+/// active one here, without its window ([`single_canvas_document`]).
 fn document(app: &mut PhotocraftApp, ui: &mut egui::Ui, rect: Rect) {
     // A tab click switches documents before any canvas is drawn this pass.
     publish_shown(app);
@@ -213,7 +225,7 @@ fn document(app: &mut PhotocraftApp, ui: &mut egui::Ui, rect: Rect) {
         return;
     }
     let Some(active) = app.session.active_index() else { return };
-    let Some(idx) = main_canvas_document(app) else { return };
+    let Some(idx) = single_canvas_document(app) else { return };
     // The panel's document area (`CanvasPanelOutput::document`).
     app.last_canvas_rect = rect;
     app.last_canvas_layer = ui.layer_id();

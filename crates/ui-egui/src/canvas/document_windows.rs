@@ -8,7 +8,7 @@ use craft::host::target::WindowState;
 use craft::ui::canvas::ToolHost;
 use craft::ui::contract::{ShowContainer as _, SizeLimits};
 use craft::ui::runtime::windows::WindowHost;
-use craft::ui::shell::{DocumentWindow, Title, TitleBar, Wrapped};
+use craft::ui::shell::{DocumentWindow, ScreenMode, Title, TitleBar, Wrapped};
 use craft::window::policy::Frame;
 use egui::{Rect, Vec2, vec2};
 use photocraft_doc::DocId;
@@ -58,9 +58,24 @@ pub(crate) fn sync_documents(app: &mut PhotocraftApp, ids: &[DocId]) {
     }
 }
 
+/// Whether the main window's document area shows the active document in place of the floating windows: in Full
+/// Screen Mode With Menu Bar and Full Screen Mode while every open document floats (#16846). The windows are not
+/// shown then, and they keep their places and sizes, so Standard Screen Mode floats them again where they were. A mix
+/// of docked and floating documents keeps the windows.
+pub(crate) fn full_screen_shows_active(app: &PhotocraftApp) -> bool {
+    app.ui.view.screen_mode != ScreenMode::Standard
+        && !app.ui.document_windows.floating.is_empty()
+        && app.session.active().is_some()
+        && super::tabs::docked_document_indices(app).is_empty()
+}
+
 /// The floating document windows, each in its own OS window (or on the fallback layer where there is
-/// none). `ui` is the frame's root `Ui`: `DocumentWindow` is a container shown in a parent.
+/// none). `ui` is the frame's root `Ui`: `DocumentWindow` is a container shown in a parent. None shows while the
+/// document area shows the active document full screen ([`full_screen_shows_active`]).
 pub fn extra_windows(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+    if full_screen_shows_active(app) {
+        return;
+    }
     let windows: Vec<(u64, Rect)> = app.ui.document_windows.floating.iter().map(|(g, rect)| (g.id, *rect)).collect();
     let mut closed = Vec::new();
     let mut docked = Vec::new();

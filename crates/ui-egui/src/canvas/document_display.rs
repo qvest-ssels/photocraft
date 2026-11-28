@@ -68,6 +68,10 @@ impl CanvasHost {
     /// the dialogs' canvas picks work on: the floating document window that draws it, else the main document area.
     /// A New Window for Document keeps a view of its own, so it is never the document's own canvas.
     pub(crate) fn primary(app: &PhotocraftApp, idx: usize) -> Self {
+        // The full-screen modes show a floating document in the main document area, its window put away (#16846).
+        if super::document_windows::full_screen_shows_active(app) {
+            return Self::main(idx);
+        }
         let window = app
             .ui
             .document_windows

@@ -238,6 +238,10 @@ mod pattern_drag_tests;
 mod tabs_tests;
 
 #[cfg(test)]
+#[path = "screen_mode_floating_documents_tests.rs"]
+mod screen_mode_floating_documents_tests;
+
+#[cfg(test)]
 mod canvas_settle_trials;
 
 #[cfg(test)]
