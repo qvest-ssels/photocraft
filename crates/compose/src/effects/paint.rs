@@ -569,7 +569,11 @@ pub(super) fn glow_map(shape: &Map, g: &Glow, inner: bool, origin: (i32, i32)) -
     if inner && g.source == GlowSource::Center {
         m = m.map(|v| 1.0 - v);
     }
-    noise(&mut m, g.noise, origin.0, origin.1);
+    // #14926: an Inner Glow scatters harder at mid Noise than the shared law gives (measured
+    // band: Noise 50 leaves 343 of 1620 px without glow, Noise 100 490). The square root keeps
+    // Noise 0 and Noise 100 where they are and lifts Noise 50 to the law's 0.71 (about 340 px).
+    let amount = if inner && g.noise > 0.0 { g.noise.sqrt() } else { g.noise };
+    noise(&mut m, amount, origin.0, origin.1);
     if inner {
         for (v, a) in m.v.iter_mut().zip(&shape.v) {
             *v *= a;

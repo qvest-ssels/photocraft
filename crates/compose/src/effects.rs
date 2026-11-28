@@ -270,5 +270,8 @@ mod satin_size_one_tests;
 
 #[cfg(test)]
 mod inner_glow_size_one_tests;
+
+#[cfg(test)]
+mod inner_glow_noise_tests;
 #[cfg(test)]
 mod stroke_partial_alpha_tests;
